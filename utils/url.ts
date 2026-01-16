@@ -1,84 +1,113 @@
+interface ProxyStrategy {
+  name: string;
+  getUrl: (target: string) => string;
+  extractContent: (response: Response) => Promise<string>;
+}
+
+// List of CORS proxies to try in order
+const PROXIES: ProxyStrategy[] = [
+  {
+    name: "AllOrigins",
+    getUrl: (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&t=${Date.now()}`,
+    extractContent: async (res) => {
+      const data = await res.json();
+      if (!data.contents) throw new Error("No content returned from proxy");
+      return data.contents;
+    }
+  },
+  {
+    name: "CorsProxy",
+    getUrl: (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    extractContent: async (res) => await res.text()
+  }
+];
+
 export async function fetchTextFromUrl(url: string): Promise<string> {
-  // 1. Validate URL format first to separate user error from network error
+  // 1. Validate URL format
   try {
     new URL(url);
   } catch (e) {
     throw new Error("Invalid URL format. Please include https://");
   }
 
-  try {
-    // Use a CORS proxy. allorigins.win is generally reliable.
-    // We add a timestamp to prevent caching old responses.
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&t=${Date.now()}`;
-    
-    // 2. Setup timeout (15 seconds) so it doesn't hang indefinitely
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let lastError: Error | null = null;
 
-    const response = await fetch(proxyUrl, { 
-      signal: controller.signal 
-    });
-    
-    clearTimeout(timeoutId);
+  // 2. Try proxies sequentially
+  for (const proxy of PROXIES) {
+    try {
+      console.log(`Attempting fetch via ${proxy.name}...`);
+      const proxyUrl = proxy.getUrl(url);
 
-    if (!response.ok) {
-      throw new Error(`Proxy network error: ${response.status} ${response.statusText}`);
+      // Setup timeout (15 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(proxyUrl, {
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      }
+
+      const htmlContent = await proxy.extractContent(response);
+      
+      if (!htmlContent || htmlContent.length < 50) {
+        throw new Error("Received empty or too short content");
+      }
+
+      // 3. Process the content if successful
+      return processHtmlContent(htmlContent);
+
+    } catch (error: any) {
+      console.warn(`Proxy ${proxy.name} failed:`, error);
+      lastError = error;
+      
+      // Try next proxy
+      continue;
     }
-
-    const data = await response.json();
-    
-    // Check if the proxy actually got content
-    if (!data.contents) {
-      throw new Error("The proxy could not retrieve content from this URL.");
-    }
-
-    const htmlContent = data.contents;
-
-    // 3. Parse HTML
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlContent, 'text/html');
-
-    // 4. Remove clutter (Expanded list)
-    const selectorsToRemove = [
-      'script', 'style', 'noscript', 'iframe', 'svg',
-      'nav', 'footer', 'header', 'aside', 'form',
-      '.nav', '.footer', '.header', '.menu', '#menu', '.sidebar',
-      '.ad', '.ads', '.advertisement', '.popup', '.modal',
-      '[role="alert"]', '[role="banner"]', '[role="navigation"]',
-      'button', 'input', 'textarea'
-    ];
-
-    selectorsToRemove.forEach(selector => {
-      const elements = doc.querySelectorAll(selector);
-      elements.forEach(el => el.remove());
-    });
-
-    // 5. Extract text
-    // innerText is often better than textContent as it respects hidden elements, 
-    // but we fallback to textContent if needed.
-    const text = (doc.body.innerText || doc.body.textContent || "").trim();
-
-    if (text.length < 50) {
-       // Heuristic: If we got very little text, the site is likely a Single Page App (SPA)
-       // that requires JavaScript to render content, which this proxy method cannot handle.
-       throw new Error("Could not extract enough text. The site might block scrapers or requires JavaScript to load content.");
-    }
-
-    // Clean up whitespace: replace multiple spaces/newlines with single space
-    return text.replace(/\s+/g, ' ').trim();
-
-  } catch (error: any) {
-    console.error("Error fetching URL:", error);
-    
-    if (error.name === 'AbortError') {
-      throw new Error("Request timed out. The website took too long to respond.");
-    }
-    
-    // If it's a TypeError here (after the initial URL check), it's likely a network failure (CORS/DNS), not a bad URL string
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-       throw new Error("Network error. The proxy could not reach the website or the connection failed.");
-    }
-
-    throw new Error(error.message || "Could not fetch content.");
   }
+
+  // 4. Handle final failure
+  console.error("All proxies failed.");
+  const errorMessage = lastError?.message || "Unknown error";
+  
+  if (errorMessage.includes("NetworkError") || errorMessage.includes("fetch") || errorMessage.includes("Failed to fetch")) {
+     throw new Error("Network error. Could not connect to the website via any proxy. The site might be blocking access or you may have an adblocker preventing the connection.");
+  }
+  
+  throw new Error(`Could not fetch content: ${errorMessage}`);
+}
+
+function processHtmlContent(htmlContent: string): string {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlContent, 'text/html');
+
+  // Remove clutter
+  const selectorsToRemove = [
+    'script', 'style', 'noscript', 'iframe', 'svg',
+    'nav', 'footer', 'header', 'aside', 'form',
+    '.nav', '.footer', '.header', '.menu', '#menu', '.sidebar',
+    '.ad', '.ads', '.advertisement', '.popup', '.modal',
+    '[role="alert"]', '[role="banner"]', '[role="navigation"]',
+    'button', 'input', 'textarea', 'link'
+  ];
+
+  selectorsToRemove.forEach(selector => {
+    const elements = doc.querySelectorAll(selector);
+    elements.forEach(el => el.remove());
+  });
+
+  // Extract text
+  // Fallback to textContent if body is null
+  const text = (doc.body?.innerText || doc.body?.textContent || "").trim();
+
+  if (text.length < 50) {
+     throw new Error("Could not extract enough text. The site might be using complex JavaScript rendering.");
+  }
+
+  // Clean up whitespace
+  return text.replace(/\s+/g, ' ').trim();
 }

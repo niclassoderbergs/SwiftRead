@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, FastForward, Rewind, Settings2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, FastForward, Rewind, Settings2, Clock } from 'lucide-react';
 import { ReaderStatus } from '../types';
 
 interface ControlPanelProps {
@@ -25,14 +25,39 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 }) => {
   const isPlaying = status === ReaderStatus.PLAYING;
 
+  // Calculate time
+  const secondsPerWord = 60 / Math.max(wpm, 1);
+  const elapsedSeconds = progress * secondsPerWord;
+  const totalSeconds = total * secondsPerWord;
+
+  const formatTime = (seconds: number) => {
+    if (!isFinite(seconds) || isNaN(seconds)) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="bg-surface p-6 rounded-xl border border-slate-700 space-y-6">
-      {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-xs text-slate-400 font-mono">
-          <span>{progress + 1} / {Math.max(total, 1)} words</span>
-          <span>{Math.round(((progress + 1) / Math.max(total, 1)) * 100)}%</span>
+      {/* Progress Bar & Info */}
+      <div className="space-y-3">
+        {/* Info Row */}
+        <div className="flex justify-between items-end text-xs font-mono">
+          <div className="space-y-1">
+             <div className="text-slate-400">
+               {progress + 1} / {Math.max(total, 1)} words
+             </div>
+             <div className="flex items-center gap-1.5 text-primary/80">
+               <Clock size={12} />
+               <span>
+                 {formatTime(elapsedSeconds)} / {formatTime(totalSeconds)}
+               </span>
+             </div>
+          </div>
+          <span className="text-slate-500">{Math.round(((progress + 1) / Math.max(total, 1)) * 100)}%</span>
         </div>
+
+        {/* Slider */}
         <input
           type="range"
           min="0"
