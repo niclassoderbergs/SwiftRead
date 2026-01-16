@@ -32,8 +32,8 @@ export const ReaderDisplay: React.FC<ReaderDisplayProps> = ({ word, isActive }) 
           {parts.left}
         </span>
 
-        {/* Pivot - Exact Center */}
-        <span className="shrink-0 text-accent font-bold w-[1ch] text-center">
+        {/* Pivot - Exact Center - Changed to Red for visibility */}
+        <span className="shrink-0 text-red-400 font-bold w-[1ch] text-center">
           {parts.pivot}
         </span>
 

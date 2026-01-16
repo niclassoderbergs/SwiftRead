@@ -1,6 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { BookOpen, X, FileUp, Loader2, Link, Download } from 'lucide-react';
-import { extractTextFromPdf } from '../utils/pdf';
+import React, { useState } from 'react';
+import { BookOpen, X, Loader2, Link, Download } from 'lucide-react';
 import { fetchTextFromUrl } from '../utils/url';
 
 interface TextInputProps {
@@ -10,35 +9,9 @@ interface TextInputProps {
 }
 
 export const TextInput: React.FC<TextInputProps> = ({ text, onTextChange, onClear }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [urlInput, setUrlInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== 'application/pdf') {
-      setStatusMessage('Please select a PDF file.');
-      return;
-    }
-
-    setIsProcessing(true);
-    setStatusMessage('Reading PDF...');
-    try {
-      const pdfText = await extractTextFromPdf(file);
-      onTextChange(pdfText);
-      setStatusMessage(null);
-    } catch (error: any) {
-      setStatusMessage(error.message || "An error occurred while loading the PDF.");
-    } finally {
-      setIsProcessing(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
 
   const handleUrlFetch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,10 +32,6 @@ export const TextInput: React.FC<TextInputProps> = ({ text, onTextChange, onClea
     } finally {
       setIsProcessing(false);
     }
-  };
-
-  const triggerFileUpload = () => {
-    fileInputRef.current?.click();
   };
 
   return (
@@ -119,31 +88,6 @@ export const TextInput: React.FC<TextInputProps> = ({ text, onTextChange, onClea
               Fetch
             </button>
           </form>
-
-          <div className="hidden md:block w-px bg-slate-700 mx-1"></div>
-
-          {/* PDF Upload */}
-          <div className="flex shrink-0">
-             <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf"
-              className="hidden"
-            />
-            <button
-              onClick={triggerFileUpload}
-              disabled={isProcessing}
-              className="w-full md:w-auto text-xs flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 text-primary hover:bg-slate-700 transition-colors border border-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing && !urlInput ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <FileUp size={14} />
-              )}
-              {isProcessing && !urlInput ? 'Processing...' : 'Upload PDF'}
-            </button>
-          </div>
         </div>
 
         {/* Status Message */}
@@ -156,7 +100,7 @@ export const TextInput: React.FC<TextInputProps> = ({ text, onTextChange, onClea
       
       <textarea
         className="w-full h-32 bg-surface text-slate-300 border border-slate-700 rounded-xl p-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none transition-all placeholder:text-slate-600"
-        placeholder="Paste your text here, enter a URL above, or upload a PDF to start reading..."
+        placeholder="Paste your text here or enter a URL above to start reading..."
         value={text}
         onChange={(e) => onTextChange(e.target.value)}
       />
