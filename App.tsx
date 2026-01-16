@@ -14,7 +14,7 @@ export default function App() {
   const [words, setWords] = useState<string[]>([]);
   const [status, setStatus] = useState<ReaderStatus>(ReaderStatus.IDLE);
   const [index, setIndex] = useState<number>(0);
-  const [wpm, setWpm] = useState<number>(300);
+  const [wpm, setWpm] = useState<number>(600);
   
   const timerRef = useRef<number | null>(null);
 
