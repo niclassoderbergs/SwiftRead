@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ReaderDisplay } from './components/ReaderDisplay';
 import { ControlPanel } from './components/ControlPanel';
 import { TextInput } from './components/TextInput';
+import { AdminDashboard } from './components/AdminDashboard';
 import { processTextToWords, calculateDelay } from './utils/rsvp';
+import { logReadSession } from './utils/analytics';
 import { ReaderStatus } from './types';
-import { Zap } from 'lucide-react';
+import { Zap, LockKeyhole } from 'lucide-react';
 
 // Default English text for demonstration
 const DEFAULT_TEXT = "Welcome to SwiftRead. This is an example of how speed reading works. Paste your own text below to get started. Rapid Serial Visual Presentation helps you focus on one word at a time, eliminating eye movements and dramatically increasing reading speed.";
@@ -15,13 +17,16 @@ export default function App() {
   const [status, setStatus] = useState<ReaderStatus>(ReaderStatus.IDLE);
   const [index, setIndex] = useState<number>(0);
   const [wpm, setWpm] = useState<number>(500);
+  const [isAdminView, setIsAdminView] = useState(false);
   
   const timerRef = useRef<number | null>(null);
+  const hasLoggedRef = useRef<boolean>(false);
 
   // Process text whenever it changes
   useEffect(() => {
     const processedWords = processTextToWords(text);
     setWords(processedWords);
+    hasLoggedRef.current = false; // Reset logging flag
     // Reset index if it goes out of bounds (e.g. text deleted)
     if (index >= processedWords.length) {
       setIndex(0);
@@ -49,6 +54,12 @@ export default function App() {
   // Main playback loop
   useEffect(() => {
     if (status === ReaderStatus.PLAYING) {
+      // Analytics: Log session if this is the first time playing this specific text block
+      if (!hasLoggedRef.current && words.length > 5) {
+        logReadSession(words.length, wpm);
+        hasLoggedRef.current = true;
+      }
+
       const delay = calculateDelay(wpm);
       
       // Recursive timeout for better precision than setInterval
@@ -65,7 +76,7 @@ export default function App() {
     }
 
     return () => stopTimer();
-  }, [status, wpm, handleTick, stopTimer]);
+  }, [status, wpm, handleTick, stopTimer, words.length]);
 
   const togglePlay = () => {
     if (words.length === 0) return;
@@ -96,6 +107,17 @@ export default function App() {
     setIndex(0);
     setStatus(ReaderStatus.IDLE);
   };
+
+  // View Switching
+  if (isAdminView) {
+    return (
+      <div className="min-h-screen bg-background text-slate-200">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+           <AdminDashboard onExit={() => setIsAdminView(false)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-slate-200 selection:bg-primary/30">
@@ -144,8 +166,17 @@ export default function App() {
         </section>
 
         {/* Footer info */}
-        <footer className="text-center text-slate-600 text-xs pt-8">
+        <footer className="flex flex-col items-center justify-center text-slate-600 text-xs pt-8 gap-4">
           <p>Rapid Serial Visual Presentation (RSVP) technique</p>
+          
+          <button 
+            onClick={() => setIsAdminView(true)}
+            className="flex items-center gap-1 opacity-50 hover:opacity-100 hover:text-primary transition-all"
+            title="Admin Login"
+          >
+            <LockKeyhole size={12} />
+            <span>Admin</span>
+          </button>
         </footer>
 
       </div>
