@@ -27,6 +27,19 @@ export const getOptimalRecognitionPoint = (word: string): WordPart => {
   };
 };
 
+export const getCenterPoint = (word: string): WordPart => {
+  // Classic centering - strictly mathematical middle
+  // This avoids specific patent claims regarding "Optimal Recognition Point" logic
+  const len = word.length;
+  const pivotIndex = len > 0 ? Math.floor((len - 1) / 2) : 0;
+
+  return {
+    left: word.substring(0, pivotIndex),
+    pivot: word[pivotIndex] || '',
+    right: word.substring(pivotIndex + 1)
+  };
+};
+
 export const calculateDelay = (wpm: number): number => {
   // 60 seconds * 1000 ms / words per minute
   return (60 * 1000) / wpm;

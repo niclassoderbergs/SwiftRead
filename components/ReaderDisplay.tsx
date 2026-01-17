@@ -1,14 +1,17 @@
 import React, { useMemo } from 'react';
-import { getOptimalRecognitionPoint } from '../utils/rsvp';
+import { getOptimalRecognitionPoint, getCenterPoint } from '../utils/rsvp';
 import { WordPart } from '../types';
 
 interface ReaderDisplayProps {
   word: string;
   isActive: boolean;
+  useORP: boolean;
 }
 
-export const ReaderDisplay: React.FC<ReaderDisplayProps> = ({ word, isActive }) => {
-  const parts: WordPart = useMemo(() => getOptimalRecognitionPoint(word), [word]);
+export const ReaderDisplay: React.FC<ReaderDisplayProps> = ({ word, isActive, useORP }) => {
+  const parts: WordPart = useMemo(() => 
+    useORP ? getOptimalRecognitionPoint(word) : getCenterPoint(word), 
+  [word, useORP]);
 
   if (!isActive && !word) {
     return (
@@ -24,7 +27,7 @@ export const ReaderDisplay: React.FC<ReaderDisplayProps> = ({ word, isActive }) 
       <div className="absolute top-4 bottom-4 left-1/2 w-0.5 -ml-[1px] bg-slate-800/50" />
       <div className="absolute top-1/2 left-4 right-4 h-0.5 -mt-[1px] bg-slate-800/30" />
       
-      {/* ORP Alignment Container */}
+      {/* Alignment Container */}
       <div className="flex w-full items-baseline text-5xl md:text-6xl font-mono leading-none whitespace-nowrap">
         
         {/* Left Part - Pushes towards center */}
@@ -32,8 +35,9 @@ export const ReaderDisplay: React.FC<ReaderDisplayProps> = ({ word, isActive }) 
           {parts.left}
         </span>
 
-        {/* Pivot - Exact Center - Changed to Red for visibility */}
-        <span className="shrink-0 text-red-400 font-bold w-[1ch] text-center">
+        {/* Pivot - Exact Center */}
+        {/* CHANGED: From text-red-400 to text-primary (blue) to avoid 'Redicle' trademark/patent appearance */}
+        <span className="shrink-0 text-primary font-bold w-[1ch] text-center transform scale-105">
           {parts.pivot}
         </span>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, FastForward, Rewind, Settings2, Clock } from 'lucide-react';
+import { Play, Pause, RotateCcw, FastForward, Rewind, Settings2, Clock, MoveHorizontal } from 'lucide-react';
 import { ReaderStatus } from '../types';
 
 interface ControlPanelProps {
@@ -7,10 +7,12 @@ interface ControlPanelProps {
   wpm: number;
   progress: number;
   total: number;
+  useORP: boolean;
   onTogglePlay: () => void;
   onSpeedChange: (wpm: number) => void;
   onProgressChange: (index: number) => void;
   onReset: () => void;
+  onToggleORP: () => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -18,10 +20,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   wpm,
   progress,
   total,
+  useORP,
   onTogglePlay,
   onSpeedChange,
   onProgressChange,
   onReset,
+  onToggleORP
 }) => {
   const isPlaying = status === ReaderStatus.PLAYING;
 
@@ -112,24 +116,41 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           </button>
         </div>
 
-        {/* Speed Control */}
-        <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700/50 w-full md:w-auto">
-          <Settings2 size={18} className="text-slate-400" />
-          <div className="flex flex-col flex-1 md:w-48">
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-slate-400 font-medium">Speed</span>
-              <span className="text-xs text-accent font-bold font-mono">{wpm} WPM</span>
+        {/* Settings Group */}
+        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          
+          {/* Alignment Toggle */}
+          <button 
+            onClick={onToggleORP}
+            className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg border transition-all ${useORP ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+            title={useORP ? "Using Smart ORP Alignment" : "Using Classic Center Alignment"}
+          >
+             <div className="flex items-center gap-2">
+                <MoveHorizontal size={18} />
+                <span className="text-xs font-medium">{useORP ? 'Smart Center' : 'Classic Center'}</span>
+             </div>
+          </button>
+
+          {/* Speed Control */}
+          <div className="flex items-center gap-4 bg-slate-800/50 px-4 py-2 rounded-lg border border-slate-700/50 flex-1">
+            <Settings2 size={18} className="text-slate-400" />
+            <div className="flex flex-col flex-1 md:w-32">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-400 font-medium">Speed</span>
+                <span className="text-xs text-accent font-bold font-mono">{wpm}</span>
+              </div>
+              <input
+                type="range"
+                min="60"
+                max="1000"
+                step="10"
+                value={wpm}
+                onChange={(e) => onSpeedChange(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-accent hover:accent-rose-400"
+              />
             </div>
-            <input
-              type="range"
-              min="60"
-              max="1000"
-              step="10"
-              value={wpm}
-              onChange={(e) => onSpeedChange(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-600 rounded-lg appearance-none cursor-pointer accent-accent hover:accent-rose-400"
-            />
           </div>
+
         </div>
       </div>
     </div>

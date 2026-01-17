@@ -17,6 +17,7 @@ export default function App() {
   const [status, setStatus] = useState<ReaderStatus>(ReaderStatus.IDLE);
   const [index, setIndex] = useState<number>(0);
   const [wpm, setWpm] = useState<number>(500);
+  const [useORP, setUseORP] = useState<boolean>(true); // Optimal Recognition Point toggle
   const [isAdminView, setIsAdminView] = useState(false);
   
   const timerRef = useRef<number | null>(null);
@@ -138,7 +139,8 @@ export default function App() {
         <section aria-label="Reading Area">
           <ReaderDisplay 
             word={words[index] || ""} 
-            isActive={words.length > 0} 
+            isActive={words.length > 0}
+            useORP={useORP}
           />
         </section>
 
@@ -149,10 +151,12 @@ export default function App() {
             wpm={wpm}
             progress={index}
             total={words.length}
+            useORP={useORP}
             onTogglePlay={togglePlay}
             onSpeedChange={setWpm}
             onProgressChange={handleProgressChange}
             onReset={handleReset}
+            onToggleORP={() => setUseORP(!useORP)}
           />
         </section>
 
